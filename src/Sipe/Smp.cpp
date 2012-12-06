@@ -109,7 +109,7 @@ void Smp::rm_double_pending() {
         for( int j = 0; j < i; ++j ) {
             if ( pending[ j ].bid() == pending[ i ].bid() and pending[ j ].nok_to_pok == pending[ i ].nok_to_pok ) {
                 pending.remove( i-- );
-                P( "REMOVED" );
+                // P( "REMOVED" );
                 break;
             }
         }

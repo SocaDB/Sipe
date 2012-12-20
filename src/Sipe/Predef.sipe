@@ -24,12 +24,46 @@ space     = tab | vert_tab | ff | lf | cr # Whitespace. [\\t\\v\\f\\n\\r ]
 zlen      = '' # Zero length string
 end       = { end: inp_cont = &&end; return false; } any** #
 
-# mandatory arg: val (e.g. unsigned_int_reader[ val = 'content_length' ])
+# mandatory arg: val (e.g. uint[ content_length ])
 uint[ val, type = 'unsigned long' ] =
-    add_attr[ 'type val;' 'sipe_data->val = 0;' ]
+    add_attr[ 'type val;' 'sipe_data->val = 0' ]
     digit { sipe_data->val = *data - '0'; }
     ( digit { sipe_data->val = 10 * sipe_data->val + ( *data - '0' ); } )**
 
+
+# mandatory arg: val (e.g. float[ content_length ])
+float[ val, type = 'double' ] =
+    add_attr[ 'type val;' 'sipe_data->val = 0' ]
+    add_attr[ 'type __val_exp;' 'sipe_data->__val_exp = 0' ]
+    # mantissa
+    ( '-'
+        digit { sipe_data->val = '0' - *data; }
+        ( digit { sipe_data->val = 10 * sipe_data->val + ( '0' - *data ); } )**
+        # . ...
+        ( '.' 
+            ( digit { sipe_data->val = 10 * sipe_data->val + ( '0' - *data ); --sipe_data->__val_exp; } )**
+            { sipe_data->val *= pow( 10.0, sipe_data->__val_exp ); }
+            { sipe_data->__val_exp = 0; }
+        )??
+    ) | (
+        digit { sipe_data->val = *data - '0'; }
+        ( digit { sipe_data->val = 10 * sipe_data->val + ( *data - '0' ); } )**
+        # . ...
+        ( '.' 
+            ( digit { sipe_data->val = 10 * sipe_data->val + ( *data - '0' ); --sipe_data->__val_exp; } )**
+            { sipe_data->val *= pow( 10.0, sipe_data->__val_exp ); }
+            { sipe_data->__val_exp = 0; }
+        )??
+    )
+    # exponent
+    ( 'e'
+        ( '-'
+            ( digit { sipe_data->__val_exp = 10 * sipe_data->__val_exp + ( '0' - *data ); } )**
+        ) | (
+            ( digit { sipe_data->__val_exp = 10 * sipe_data->__val_exp + ( *data - '0' ); } )**
+        )
+        { sipe_data->val *= pow( 10.0, sipe_data->__val_exp ); }
+    )??
 
 # print a char
 p[ msg = '' ] =
@@ -118,6 +152,7 @@ str_sized[ __val__, __len__, __type__ = "std::string" ] =
     {
         sipe_data->__val___rem = __len__;
         sipe_data->__val__.clear();
+        sipe_data->__val__.reserve( __len__ );
     jmp_rd___val__$$$uid$$$:
         if ( not sipe_data->__val___rem )
             goto end_rd___val__$$$uid$$$;

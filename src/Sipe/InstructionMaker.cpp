@@ -184,9 +184,11 @@ Instruction *InstructionMaker::app( Instruction *src, const Lexem *lex, Par par 
             } else
                 lexem_maker.err( lex, "Machine not found." );
         } else if ( lex->type == Lexem::STRING ) {
-            for( const char *s = lex->beg; s != lex->end; ++s ) {
+            std::string sr = repl_parm( lex, error_list, String( lex->beg, lex->end ), par.params );
+            // for( const char *s = lex->beg; s != lex->end; ++s ) {
+            for( unsigned i = 0; i < sr.size(); ++i ) {
                 src = app( src, new Instruction( lex, par.freq, 1 ) );
-                src = app( src, new Instruction( lex, par.freq, Cond( *s ) ) );
+                src = app( src, new Instruction( lex, par.freq, Cond( sr[ i ] ) ) );
             }
         } else if ( lex->type == Lexem::NUMBER ) {
             src = app( src, new Instruction( lex, par.freq, 1 ) );

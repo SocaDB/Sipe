@@ -134,8 +134,9 @@ void Language_C::_write_init_func( std::ostream &os, const char *sp, const char 
     on.beg = sp;
 
     on << sn << "_inp_cont = 0;";
-    //if ( need_a_mark )
-    //    on << sn << "_mark = 0;";
+
+    for( int i = 0; i < nb_marks; ++i )
+        on << sn << "_mark[ " << i << " ] = 0;";
 
     for( int i = 0, a = 0; i < cp->attributes.size(); ++i ) {
         if ( cp->attributes[ i ].init.size() ) {

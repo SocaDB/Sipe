@@ -22,6 +22,7 @@ eol       = cr? lf # unix or window$ end line
 vert_tab  = 11 # vertical tab
 space     = tab | vert_tab | ff | lf | cr # Whitespace. [\\t\\v\\f\\n\\r ]
 zlen      = '' # Zero length string
+base64    = alnum | '+' | '/' | '='
 end       = { end: inp_cont = &&end; return false; } any** #
 
 # mandatory arg: val (e.g. uint[ content_length ])
@@ -57,12 +58,12 @@ float[ val, type = 'double' ] =
     )
     # exponent
     ( 'e'
-        ( '-'
-            ( digit { sipe_data->__val_exp = 10 * sipe_data->__val_exp + ( '0' - *data ); } )**
-        ) | (
-            ( digit { sipe_data->__val_exp = 10 * sipe_data->__val_exp + ( *data - '0' ); } )**
-        )
-        { sipe_data->val *= pow( 10.0, sipe_data->__val_exp ); }
+       ( '-'
+           ( digit { sipe_data->__val_exp = 10 * sipe_data->__val_exp + ( '0' - *data ); } )**
+       ) | (
+           ( digit { sipe_data->__val_exp = 10 * sipe_data->__val_exp + ( *data - '0' ); } )**
+       )
+       { sipe_data->val *= pow( 10.0, sipe_data->__val_exp ); }
     )??
 
 # print a char
@@ -73,14 +74,14 @@ p[ msg = '' ] =
     { std::cout << "msg" << std::endl; }
 
 # print "val -> $sipe_data->val"
-i[ val = "*data" ] =
+i[ val ] =
     add_prel[ '#ifdef SIPE_MAIN' ]
     add_prel[ '#include <iostream>' ]
     add_prel[ '#endif // SIPE_MAIN' ]
     { std::cout << "val -> '" << sipe_data->val << "'" << std::endl; }
 
 # print a value (by default, print current char)
-d[ __val__ = "*data" ] =
+d[ __val__ ] =
     add_prel[ '#ifdef SIPE_MAIN' ]
     add_prel[ '#include <iostream>' ]
     add_prel[ '#endif // SIPE_MAIN' ]

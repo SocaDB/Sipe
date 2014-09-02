@@ -34,6 +34,7 @@ int usage( const char *prg, const char *msg, int res ) {
     cerrn << "  -o filename: file name for code output";
     cerrn << "  -l language: output langage (in C, C++, Javascript)";
     cerrn << "  -m machine: oentry point ('main'' by default)";
+    cerrn << "  -b class_name: use class_name (e.g. Ptr<Nuffer>) instead of const char *couples";
     cerrn << "  -e: compile and execute";
     cerrn << "  -L : buffer length for execution";
     cerrn << "  -dl: to display the lexem graph";
@@ -54,6 +55,7 @@ int main( int argc, char **argv ) {
     const char *buffer_length = "2048";
     bool execute = false;
     const char *source = 0;
+    const char *ptr_buf = 0;
     const char *machine = 0;
     const char *language = 0;
 
@@ -73,6 +75,10 @@ int main( int argc, char **argv ) {
             if ( i + 1 >= argc )
                 return usage( argv[ 0 ], "-m must be followed by an argument", 3 );
             machine = argv[ ++i ];
+        } else if ( strcmp( argv[ i ], "-b" ) == 0 ) {
+            if ( i + 1 >= argc )
+                return usage( argv[ 0 ], "-b must be followed by an argument", 3 );
+            ptr_buf = argv[ ++i ];
         } else if ( strcmp( argv[ i ], "-L" ) == 0 ) {
             if ( i + 1 >= argc )
                 return usage( argv[ 0 ], "-l must be followed by an argument", 2 );
@@ -131,6 +137,7 @@ int main( int argc, char **argv ) {
 
     Language_C l( true );
     l.db = db;
+    l.ptr_buf = ptr_buf;
     l.buffer_length = buffer_length;
     l.write( *out, e.code_parm, state, true );
 

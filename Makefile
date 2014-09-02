@@ -14,6 +14,9 @@ tsh: cmp
 	cat rec
 	./sipe -e tests/http.sipe rec
 
+test_buffer: cmp
+	python bin/test_buffer.py
+	
 install:
 	mkdir -p          ~/.kde4/share/apps/katepart/syntax
 	ln    -s sipe.xml ~/.kde4/share/apps/katepart/syntax

@@ -18,7 +18,7 @@ post_data =
         any
     )**
     <- end_post_data
-    { std::cout.write( data + 1, sipe_data->content_length ); }
+    { std::cout.write( (const char *)data + 1, sipe_data->content_length ); }
     p
 
 get  = 'GET '  p[ get ] # get_urls

@@ -20,11 +20,13 @@
 
 #include "Language_C.h"
 #include "StreamSep.h"
+#include "assert.h"
 #include <sstream>
 
 
 Language_C::Language_C( bool cpp ) : cpp( cpp ) {
     buffer_length = "2048";
+    ptr_buf = 0;
 }
 
 Language_C::~Language_C() {
@@ -43,17 +45,19 @@ void Language_C::write( std::ostream &os, const CodeParm &_cp, const State *stat
     _make_labels( block );
 
     // hum...
-    if ( write_main ) {
-        on << "#ifdef SIPE_MAIN";
-        on << "#include <unistd.h>";
-        on << "#include <stdio.h>";
-        on << "#include <fcntl.h>";
-        on << "#include <string>";
-        on << "#endif // SIPE_MAIN";
+    if ( not ptr_buf ) {
+        if ( write_main ) {
+            on << "#ifdef SIPE_MAIN";
+            on << "#include <unistd.h>";
+            on << "#include <stdio.h>";
+            on << "#include <fcntl.h>";
+            on << "#include <string>";
+            on << "#endif // SIPE_MAIN";
+        }
+        on << "#ifndef SIPE_CHARP";
+        on << "#define SIPE_CHARP const char *";
+        on << "#endif // SIPE_CHARP";
     }
-    on << "#ifndef SIPE_CHARP";
-    on << "#define SIPE_CHARP const char *";
-    on << "#endif // SIPE_CHARP";
 
     //
     _write_preliminaries( os );
@@ -62,31 +66,33 @@ void Language_C::write( std::ostream &os, const CodeParm &_cp, const State *stat
 
     _write_parse_func( os );
 
-    if ( not cpp ) {
-        on << "void init" << f_suf << "( " << cp->struct_name << " *sipe_data ) {";
-        _write_init_func( os, "    ", "sipe_data->" );
+    if ( not ptr_buf ) {
+        if ( not cpp ) {
+            on << "void init" << f_suf << "( " << cp->struct_name << " *sipe_data ) {";
+            _write_init_func( os, "    ", "sipe_data->" );
+            on << "}";
+
+            on << "void dest" << f_suf << "( " << cp->struct_name << " *sipe_data ) {";
+            _write_dest_func( os, "    ", "sipe_data->" );
+            on << "}";
+        }
+
+        on << "#ifdef SIPE_CLASS";
+        on << "int parse( SIPE_CHARP beg, SIPE_CHARP end ) {";
+        on << "    return parse( &sipe_data, beg, end );";
         on << "}";
-
-        on << "void dest" << f_suf << "( " << cp->struct_name << " *sipe_data ) {";
-        _write_dest_func( os, "    ", "sipe_data->" );
-        on << "}";
-    }
-
-    on << "#ifdef SIPE_CLASS";
-    on << "int parse( SIPE_CHARP beg, SIPE_CHARP end ) {";
-    on << "    return parse( &sipe_data, beg, end );";
-    on << "}";
-    on << "SipeData sipe_data;";
-    on << "#endif // SIPE_CLASS";
+        on << "SipeData sipe_data;";
+        on << "#endif // SIPE_CLASS";
 
 
-    //
-    if ( write_main ) {
-        StreamSepMaker<std::ostream> on( os );
-        on << "#ifdef SIPE_MAIN";
-        _write_parse_file_func( os );
-        _write_main_func( os );
-        on << "#endif // SIPE_MAIN";
+        //
+        if ( write_main ) {
+            StreamSepMaker<std::ostream> on( os );
+            on << "#ifdef SIPE_MAIN";
+            _write_parse_file_func( os );
+            _write_main_func( os );
+            on << "#endif // SIPE_MAIN";
+        }
     }
 }
 
@@ -121,8 +127,14 @@ void Language_C::_write_declarations( std::ostream &os ) {
     }
     on << "    void *_inp_cont;";
     if ( nb_marks ) {
-        on << "    SIPE_CHARP _mark[ " << nb_marks << " ];";
-        on << "    std::string _mark_data[ " << nb_marks << " ];";
+        if ( ptr_buf ) {
+            on << "    " << ptr_buf << " _beg_mark[ " << nb_marks << " ];";
+            on << "    " << ptr_buf << " _end_mark[ " << nb_marks << " ];";
+            on << "    int _off_mark[ " << nb_marks << " ];";
+        } else {
+            on << "    SIPE_CHARP _mark[ " << nb_marks << " ];";
+            on << "    std::string _mark_data[ " << nb_marks << " ];";
+        }
     }
     for( int i = 0; i < cp->attributes.size(); ++i )
         on << "    " << cp->attributes[ i ].decl;
@@ -135,8 +147,9 @@ void Language_C::_write_init_func( std::ostream &os, const char *sp, const char 
 
     on << sn << "_inp_cont = 0;";
 
-    for( int i = 0; i < nb_marks; ++i )
-        on << sn << "_mark[ " << i << " ] = 0;";
+    if ( not ptr_buf )
+        for( int i = 0; i < nb_marks; ++i )
+            on << sn << "_mark[ " << i << " ] = 0;";
 
     for( int i = 0, a = 0; i < cp->attributes.size(); ++i ) {
         if ( cp->attributes[ i ].init.size() ) {
@@ -173,13 +186,23 @@ void Language_C::_write_parse_func( std::ostream &os ) {
     on.beg = sp.c_str();
 
     // parse
-    os << "int parse" << f_suf << "( " << cp->struct_name << " *sipe_data, SIPE_CHARP data, SIPE_CHARP end ) {\n";
-    if ( nb_marks )
-        on << "SIPE_CHARP beg_data = data;\n";
+    if ( ptr_buf ) {
+        os << "int parse" << f_suf << "( " << cp->struct_name << " *sipe_data, " << ptr_buf << " buffer ) {\n";
+        os << "     while ( not buffer->used ) {\n";
+        os << "         buffer = buffer->next;\n";
+        os << "         if ( not buffer )\n";
+        os << "             return 0; // want more\n";
+        os << "     }\n";
+        os << "     \n";
+        os << "     unsigned char *data = buffer->data, *end = data + buffer->used;\n";
+        os << "     \n";
+    } else {
+        os << "int parse" << f_suf << "( " << cp->struct_name << " *sipe_data, SIPE_CHARP data, SIPE_CHARP end ) {\n";
+        if ( nb_marks )
+            on << "SIPE_CHARP beg_data = data;\n";
+    }
     on << "if ( sipe_data->_inp_cont )";
     on << "    goto *sipe_data->_inp_cont;";
-    on << "";
-    on << "#define INCR( N ) if ( ++data >= end ) goto p_##N; c_##N:";
     on << "";
 
     // blocks
@@ -208,25 +231,36 @@ void Language_C::_write_parse_func( std::ostream &os ) {
 
             //
             if ( b->state->set_mark ) {
-                on << "sipe_data->_mark[ " << marks[ b->state ] << " ] = data;";
-                on << "sipe_data->_mark_data[ " << marks[ b->state ] << " ].clear();";
+                if ( ptr_buf ) {
+                    on << "sipe_data->_beg_mark[ " << marks[ b->state ] << " ] = buffer;";
+                    on << "sipe_data->_end_mark[ " << marks[ b->state ] << " ] = buffer;";
+                    on << "sipe_data->_off_mark[ " << marks[ b->state ] << " ] = data - buffer->data;";
+                } else {
+                    on << "sipe_data->_mark[ " << marks[ b->state ] << " ] = data;";
+                    on << "sipe_data->_mark_data[ " << marks[ b->state ] << " ].clear();";
+                }
             }
 
-            //
+            // rewind and exec following expressions blocks
             if ( b->state->use_mark ) {
                 int nm = marks[ b->state->use_mark ];
-                on << "if ( sipe_data->_mark[ " << nm << " ] ) {";
-                on << "    data = sipe_data->_mark[ " << nm << " ];";
-                on << "} else {";
-                // on << "    std::cout << '-' << sipe_data->_mark_data[ " << nm << " ] << '-' << std::endl;";
-                on << "    sipe_data->_inp_cont = &&cnt_mark_" << b << ";";
-                on << "    SIPE_CHARP beg = (SIPE_CHARP)sipe_data->_mark_data[ " << nm << " ].data();";
-                on << "    int res = parse( sipe_data, beg, beg + sipe_data->_mark_data[ " << nm << " ].size() );";
-                on << "    if ( res )";
-                on << "        return res;";
-                on << "    data = beg_data;";
-                on << "    goto *sipe_data->_inp_cont;";
-                on << "}";
+                if ( ptr_buf ) {
+                    on << "buffer = sipe_data->_beg_mark[ " << nm << " ];";
+                    on << "data = buffer->data + sipe_data->_off_mark[ " << nm << " ];";
+                    on << "end = data + buffer->used;";
+                } else {
+                    on << "if ( sipe_data->_mark[ " << nm << " ] ) {";
+                    on << "    data = sipe_data->_mark[ " << nm << " ];";
+                    on << "} else {";
+                    on << "    sipe_data->_inp_cont = &&cnt_mark_" << b << ";";
+                    on << "    SIPE_CHARP beg = (SIPE_CHARP)sipe_data->_mark_data[ " << nm << " ].data();";
+                    on << "    int res = parse( sipe_data, beg, beg + sipe_data->_mark_data[ " << nm << " ].size() );";
+                    on << "    if ( res )";
+                    on << "        return res;";
+                    on << "    data = beg_data;";
+                    on << "    goto *sipe_data->_inp_cont;";
+                    on << "}";
+                }
                 os << "cnt_mark_" << b << ":\n";
             }
 
@@ -236,7 +270,8 @@ void Language_C::_write_parse_func( std::ostream &os ) {
 
             //
             if ( b->state->incc ) {
-                on << "INCR( " << cnt.size() << " )";
+                on << "if ( ++data >= end ) goto p_" << cnt.size() << ";";
+                os << "c_" << cnt.size() << ":\n";
 
                 Cnt c;
                 c.block = b;
@@ -262,16 +297,40 @@ void Language_C::_write_parse_func( std::ostream &os ) {
     }
 
     // cnt
+    on.beg = "";
     for( int i = 0; i < cnt.size(); ++i ) {
-        os << "p_" << i << ":";
-        on.first_beg = on.beg + std::min( nb_spaces, 3 + nb_digits( i ) );
-        if ( const State *m = cnt[ i ].block->mark ) {
-            // on << "std::cout << *sipe_data->_mark[ " << marks[ m ] << " ] << std::endl;";
-            on << "sipe_data->_mark_data[ " << marks[ m ] << " ].append( sipe_data->_mark[ " << marks[ m ] << " ] ? sipe_data->_mark[ " << marks[ m ] << " ] : beg_data, data );";
-            on << "sipe_data->_mark[ " << marks[ m ] << " ] = 0;";
+        if ( ptr_buf ) {
+            on << "p_" << i << ": ";
+            on << "    while ( buffer->next ) {";
+            on << "        buffer = buffer->next;";
+            on << "        if ( buffer->used ) {";
+            on << "            data = buffer->data;";
+            on << "            end = data + buffer->used;";
+            on << "            goto c_" << i << ";";
+            on << "        }";
+            on << "   }";
+            if ( const State *m = cnt[ i ].block->mark ) {
+                on << "   sipe_data->_inp_cont = &&m_" << i << ";";
+                on << "   return 0;";
+                on << "m_" << i << ": ";
+                on << "    sipe_data->_end_mark[ " << marks[ m ] << " ]->next = buffer;";
+                on << "    sipe_data->_end_mark[ " << marks[ m ] << " ] = buffer;";
+                on << "    goto c_" << i << ";";
+            } else {
+                on << "   sipe_data->_inp_cont = &&c_" << i << ";";
+                on << "   return 0;";
+            }
+        } else {
+            os << "p_" << i << ":";
+            if ( const State *m = cnt[ i ].block->mark ) {
+                on << "sipe_data->_mark_data[ " << marks[ m ] << " ].append( sipe_data->_mark[ " << marks[ m ] << " ] ? sipe_data->_mark[ " << marks[ m ] << " ] : beg_data, data );";
+                on << "sipe_data->_mark[ " << marks[ m ] << " ] = 0;";
+            } else
+                on.first_beg = on.beg + std::min( nb_spaces, 3 + nb_digits( i ) );
+            on << "sipe_data->_inp_cont = &&c_" << i << "; return 0;";
         }
-        on << "sipe_data->_inp_cont = &&c_" << i << "; return 0;";
     }
+
     os << "}\n";
 }
 

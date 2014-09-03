@@ -24,36 +24,37 @@
 
 int Instruction::cur_op_id = 0;
 
-void init( Instruction *inst, const Lexem *lex, double freq ) {
-    inst->freq  = freq;
-    inst->lex   = lex;
-    inst->op_id = 0;
-    inst->incc  = 0;
-    inst->end   = 0;
+void init( Instruction *inst, const Lexem *lex, const Instruction::PM &poss_marks, double freq ) {
+    inst->poss_marks = poss_marks;
+    inst->freq       = freq;
+    inst->lex        = lex;
+    inst->op_id      = 0;
+    inst->incc       = 0;
+    inst->end        = 0;
 }
 
-Instruction::Instruction( const Lexem *lex, double freq, EndType end ) {
-    init( this, lex, freq );
+Instruction::Instruction( const Lexem *lex, const PM &poss_marks, double freq, EndType end ) {
+    init( this, lex, poss_marks, freq );
     this->end = end;
 }
 
-Instruction::Instruction( const Lexem *lex, double freq, String code ) {
-    init( this, lex, freq );
+Instruction::Instruction( const Lexem *lex, const PM &poss_marks, double freq, String code ) {
+    init( this, lex, poss_marks, freq );
     this->code = code;
 }
 
-Instruction::Instruction( const Lexem *lex, double freq, const Cond &cond ) {
-    init( this, lex, freq );
+Instruction::Instruction( const Lexem *lex, const PM &poss_marks, double freq, const Cond &cond ) {
+    init( this, lex, poss_marks, freq );
     this->cond = cond;
 }
 
-Instruction::Instruction( const Lexem *lex, double freq, int incc ) {
-    init( this, lex, freq );
+Instruction::Instruction( const Lexem *lex, const PM &poss_marks, double freq, int incc ) {
+    init( this, lex, poss_marks, freq );
     this->incc = incc;
 }
 
-Instruction::Instruction( const Lexem *lex, double freq ) {
-    init( this, lex, freq );
+Instruction::Instruction( const Lexem *lex, const PM &poss_marks, double freq ) {
+    init( this, lex, poss_marks, freq );
 }
 
 

@@ -48,10 +48,8 @@ public:
         while ( true ) {
             if ( not buffer )
                 return;
-            // std::cerr << "m " << msg_length << std::endl;
             if ( msg_length <= buffer->used - off_buffer ) {
                 off_buffer += msg_length;
-                // std::cerr << "o " << off_buffer << std::endl;
                 return;
             }
             msg_length -= buffer->used - off_buffer;

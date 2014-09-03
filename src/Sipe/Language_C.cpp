@@ -115,6 +115,7 @@ void Language_C::_write_declarations( std::ostream &os ) {
     StreamSepMaker<std::ostream> on( os );
 
     // struct
+    on << "#ifndef DONT_WANT_SIPE_STRUCT";
     on << "struct " << cp->struct_name << " {";
     if ( cpp ) {
         on << "    " << cp->struct_name << "() {";
@@ -139,6 +140,7 @@ void Language_C::_write_declarations( std::ostream &os ) {
     for( int i = 0; i < cp->attributes.size(); ++i )
         on << "    " << cp->attributes[ i ].decl;
     on << "};";
+    on << "#endif // DONT_WANT_SIPE_STRUCT";
 }
 
 void Language_C::_write_init_func( std::ostream &os, const char *sp, const char *sn ) {
@@ -184,10 +186,15 @@ void Language_C::_write_parse_func( std::ostream &os ) {
     int nb_spaces = 5;
     String sp( nb_spaces, ' ' );
     on.beg = sp.c_str();
+    os << "#ifndef DONT_WANT_SIPE_PARSE\n";
+
+    os << "#ifndef SIPE_PARSE_PRELIM\n";
+    os << "#define SIPE_PARSE_PRELIM\n";
+    os << "#endif // SIPE_PARSE_PRELIM\n";
 
     // parse
     if ( ptr_buf ) {
-        os << "int parse" << f_suf << "( " << cp->struct_name << " *sipe_data, " << ptr_buf << " buffer ) {\n";
+        os << "int SIPE_PARSE_PRELIM parse" << f_suf << "( " << cp->struct_name << " *sipe_data, " << ptr_buf << " buffer ) {\n";
         os << "     while ( not buffer->used ) {\n";
         os << "         buffer = buffer->next;\n";
         os << "         if ( not buffer )\n";
@@ -197,7 +204,7 @@ void Language_C::_write_parse_func( std::ostream &os ) {
         os << "     unsigned char *data = buffer->data, *end = data + buffer->used;\n";
         os << "     \n";
     } else {
-        os << "int parse" << f_suf << "( " << cp->struct_name << " *sipe_data, SIPE_CHARP data, SIPE_CHARP end ) {\n";
+        os << "int SIPE_PARSE_PRELIM parse" << f_suf << "( " << cp->struct_name << " *sipe_data, SIPE_CHARP data, SIPE_CHARP end ) {\n";
         if ( nb_marks )
             on << "SIPE_CHARP beg_data = data;\n";
     }
@@ -332,6 +339,7 @@ void Language_C::_write_parse_func( std::ostream &os ) {
     }
 
     os << "}\n";
+    os << "#endif // DONT_WANT_SIPE_PARSE\n";
 }
 
 void Language_C::_write_parse_file_func( std::ostream &os ) {

@@ -71,14 +71,14 @@ Instruction *InstructionMaker::make( const char *name ) {
 
     // graph from $name
     Par par; par.freq = 1;
-    Instruction *res = new Instruction( 0, 1 );
+    Instruction *res = new Instruction( 0, Instruction::PM(), 1 );
     Instruction *end = app( res, &main, par );
 
     // ok end
-    end = app( end, new Instruction( 0, 1, Instruction::OK ) );
+    end = app( end, new Instruction( 0, Instruction::PM(), 1, Instruction::OK ) );
 
     // ko end
-    end = app( res, new Instruction( 0, 1, Instruction::KO ) );
+    end = app( res, new Instruction( 0, Instruction::PM(), 1, Instruction::KO ) );
 
     to_del << res;
     return res;
@@ -93,7 +93,7 @@ void InstructionMaker::_get_labels_rec( std::map<String,Instruction *> &labels, 
         if ( labels.count( label ) )
             lexem_maker.err( lex->children[ 0 ], "This label has already been defined." );
         else
-            labels[ label ] = new Instruction( lex, 1 );
+            labels[ label ] = new Instruction( lex, Instruction::PM(), 1 );
     }
     if ( lex->children[ 0 ] ) _get_labels_rec( labels, lex->children[ 0 ] );
     if ( lex->children[ 1 ] ) _get_labels_rec( labels, lex->children[ 1 ] );
@@ -108,6 +108,7 @@ Instruction *InstructionMaker::app( Instruction *src, const Lexem *lex, Par par 
     par.params.remove( "freq" );
 
     //
+    std::set<String> possible_marks;
     for( ; lex and not lex->eq( Lexem::OPERATOR, "=" ); lex = lex->next ) {
         if ( lex->type == Lexem::VARIABLE ) {
             if ( lex->eq( "add_attr" ) ) {
@@ -129,6 +130,16 @@ Instruction *InstructionMaker::app( Instruction *src, const Lexem *lex, Par par 
                     if ( not code_parm.preliminaries.contains( prel ) )
                         code_parm.preliminaries << prel;
                 }
+            } else if ( lex->eq( "add_mark" ) ) {
+                if ( par.params.u_params.size() != 1 )
+                    lexem_maker.err( lex, "add_mark takes exactly one argument." );
+                else
+                    possible_marks.insert( par.params.u_params[ 0 ] );
+            } else if ( lex->eq( "rem_mark" ) ) {
+                if ( par.params.u_params.size() != 1 )
+                    lexem_maker.err( lex, "add_mark takes exactly one argument." );
+                else
+                    possible_marks.erase( par.params.u_params[ 0 ] );
             } else if ( lex->eq( "str_name" ) ) {
                 if ( par.params.u_params.size() == 1 )
                     code_parm.struct_name = par.params.u_params[ 0 ];
@@ -187,54 +198,54 @@ Instruction *InstructionMaker::app( Instruction *src, const Lexem *lex, Par par 
             std::string sr = repl_parm( lex, error_list, String( lex->beg, lex->end ), par.params );
             // for( const char *s = lex->beg; s != lex->end; ++s ) {
             for( unsigned i = 0; i < sr.size(); ++i ) {
-                src = app( src, new Instruction( lex, par.freq, 1 ) );
-                src = app( src, new Instruction( lex, par.freq, Cond( sr[ i ] ) ) );
+                src = app( src, new Instruction( lex, possible_marks, par.freq, 1 ) );
+                src = app( src, new Instruction( lex, possible_marks, par.freq, Cond( sr[ i ] ) ) );
             }
         } else if ( lex->type == Lexem::NUMBER ) {
-            src = app( src, new Instruction( lex, par.freq, 1 ) );
-            src = app( src, new Instruction( lex, par.freq, Cond( lex->to_int() ) ) );
+            src = app( src, new Instruction( lex, possible_marks, par.freq, 1 ) );
+            src = app( src, new Instruction( lex, possible_marks, par.freq, Cond( lex->to_int() ) ) );
         } else if ( lex->type == Lexem::CODE ) {
-            src = app( src, new Instruction( lex, par.freq, repl_parm( lex, error_list, String( lex->beg, lex->end ), par.params ) ) );
+            src = app( src, new Instruction( lex, possible_marks, par.freq, repl_parm( lex, error_list, String( lex->beg, lex->end ), par.params ) ) );
         } else if ( lex->type == Lexem::OPERATOR ) {
             if ( lex->eq( "|" ) ) {
                 Instruction *beg = src;
-                src = new Instruction( lex, par.freq );
+                src = new Instruction( lex, possible_marks, par.freq );
                 for( int i = 0; i < 2; ++i )
                     app( app( beg, lex->children[ i ], par ), src );
             } else if ( lex->eq( "**" ) ) { // priority to exit from the loop
-                src = app( src, new Instruction( lex, par.freq ) ); // because we want to loop at the beginning of this (not to the previous instruction)
+                src = app( src, new Instruction( lex, possible_marks, par.freq ) ); // because we want to loop at the beginning of this (not to the previous instruction)
                 app( app( src, lex->children[ 0 ], par ), src );
             } else if ( lex->eq( "*" ) ) { // priority to stay inside the loop
-                Instruction *comm = app( src, new Instruction( lex, par.freq ) ); // because we want to loop at he beginning of this (not to the previous instruction)
-                src = app( comm, new Instruction( lex, par.freq ) ); // first branch -> priority to exit from the loop
+                Instruction *comm = app( src, new Instruction( lex, possible_marks, par.freq ) ); // because we want to loop at he beginning of this (not to the previous instruction)
+                src = app( comm, new Instruction( lex, possible_marks, par.freq ) ); // first branch -> priority to exit from the loop
                 app( app( comm, lex->children[ 0 ], par ), comm );
             } else if ( lex->eq( "??" ) ) { // zero or one. prefer to go into
-                src = app( src, app( app( src, lex->children[ 0 ], par ), new Instruction( lex, par.freq ) ) );
+                src = app( src, app( app( src, lex->children[ 0 ], par ), new Instruction( lex, possible_marks, par.freq ) ) );
             } else if ( lex->eq( "?" ) ) { // zero or one. prefer to avoid
                 Instruction *old = src;
-                src = app( src, new Instruction( lex, par.freq ) );
+                src = app( src, new Instruction( lex, possible_marks, par.freq ) );
                 app( app( old, lex->children[ 0 ], par ), src );
             } else if ( lex->eq( "+" ) ) { // one or more (priority to exit)
                 src = app( src, lex->children[ 0 ], par );
 
-                Instruction *comm = app( src, new Instruction( lex, par.freq ) ); // because we want to loop at he beginning of this (not to the previous instruction)
-                src = app( comm, new Instruction( lex, par.freq ) ); // first branch -> priority to exit from the loop
+                Instruction *comm = app( src, new Instruction( lex, possible_marks, par.freq ) ); // because we want to loop at he beginning of this (not to the previous instruction)
+                src = app( comm, new Instruction( lex, possible_marks, par.freq ) ); // first branch -> priority to exit from the loop
                 app( app( comm, lex->children[ 0 ], par ), comm );
             } else if ( lex->eq( "++" ) ) { // one or more (with priority to stay inside)
                 src = app( src, lex->children[ 0 ], par );
 
-                src = app( src, new Instruction( lex, par.freq ) ); // because we want to loop at the beginning of this (not to the previous instruction)
+                src = app( src, new Instruction( lex, possible_marks, par.freq ) ); // because we want to loop at the beginning of this (not to the previous instruction)
                 app( app( src, lex->children[ 0 ], par ), src );
             } else if ( lex->eq( ".." ) ) {
-                Instruction *t = new Instruction( lex, par.freq );
+                Instruction *t = new Instruction( lex, possible_marks, par.freq );
                 Instruction *a = app( t, lex->children[ 0 ], par );
                 Instruction *b = app( t, lex->children[ 1 ], par );
                 int na = a->ascii_val();
                 int nb = b->ascii_val();
                 if ( na < 0 or nb < 0 )
                     lexem_maker.err( lex, ".. must be between two strings with only one char" );
-                src = app( src, new Instruction( lex, par.freq, 1 ) );
-                src = app( src, new Instruction( lex, par.freq, Cond( na, nb ) ) );
+                src = app( src, new Instruction( lex, possible_marks, par.freq, 1 ) );
+                src = app( src, new Instruction( lex, possible_marks, par.freq, Cond( na, nb ) ) );
                 del( t );
             } else if ( lex->eq( "->" ) ) { // goto
                 String label( lex->children[ 0 ]->beg, lex->children[ 0 ]->end );

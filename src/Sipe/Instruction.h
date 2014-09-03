@@ -35,12 +35,13 @@ class Language;
 class Instruction {
 public:
     typedef enum { OK = 1, KO = 2 } EndType;
+    typedef std::set<String> PM;
 
-    Instruction( const Lexem *lex, double freq, const Cond &cond );
-    Instruction( const Lexem *lex, double freq, EndType end );
-    Instruction( const Lexem *lex, double freq, String code );
-    Instruction( const Lexem *lex, double freq, int incc );
-    Instruction( const Lexem *lex, double freq );
+    Instruction( const Lexem *lex, const PM &poss_marks, double freq, const Cond &cond );
+    Instruction( const Lexem *lex, const PM &poss_marks, double freq, EndType end );
+    Instruction( const Lexem *lex, const PM &poss_marks, double freq, String code );
+    Instruction( const Lexem *lex, const PM &poss_marks, double freq, int incc );
+    Instruction( const Lexem *lex, const PM &poss_marks, double freq );
     virtual ~Instruction();
 
     bool can_lead_to( const Vec<const Instruction *> &dst, const std::set<const Instruction *> &allowed ) const;
@@ -67,11 +68,12 @@ public:
     const Lexem *lex;
 
     //
+    PM        poss_marks;
     Ctr<Cond> cond;
-    String code;
-    double freq;
-    int incc;
-    int end;
+    String    code;
+    double    freq;
+    int       incc;
+    int       end;
 
 
 protected:
@@ -89,7 +91,7 @@ protected:
     mutable int op_id;
     mutable int tmp;
 
-    friend void init( Instruction *inst, const Lexem *lex, double freq );
+    friend void init( Instruction *inst, const Lexem *lex, const Instruction::PM &poss_marks, double freq );
     friend void del( Instruction *inst );
 };
 

@@ -1,0 +1,55 @@
+#update = uint[P] ' ' i[P]
+
+#additionnal_purl = ( update | any )**
+
+#main = c 'PQRS '
+
+# beg test
+# 4 abcd5 efghi
+# expected
+# 61 62 63 64
+# 65 66 67 68 69
+# EOF
+# 
+# end test
+# 
+# 
+
+mark_and_skip[ LENGTH, BUFFER = buffer ] =
+    add_attr[ 'Sipe::Ptr<Sipe::Buffer> beg_BUFFER;' ]
+    add_attr[ 'Sipe::Buffer *end_BUFFER;' ]
+    add_attr[ 'int off_BUFFER;' ]
+     {
+        sipe_data->off_BUFFER = ++data - buffer->data;
+        if ( buffer->size() - sipe_data->off_BUFFER < sipe_data->LENGTH ) {
+            sipe_data->beg_BUFFER = buffer;
+            sipe_data->end_BUFFER = buffer.ptr();
+        
+            sipe_data->_inp_cont= &&append_buffer_$$$uid$$$;
+            return 0;
+          // continuation
+          append_buffer_$$$uid$$$:
+            sipe_data->end_BUFFER->next = buffer;
+            sipe_data->end_BUFFER = buffer.ptr();
+            if ( sipe_data->beg_BUFFER->size() - sipe_data->off_BUFFER < sipe_data->LENGTH )
+                return 0;
+
+            // change buffer for the skip some procedure
+            buffer = sipe_data->beg_BUFFER;
+            sipe_data->beg_BUFFER = 0;
+        }
+        
+        buffer->write_to_stream( std::cout, sipe_data->off_BUFFER, sipe_data->LENGTH );
+        std::cout << std::endl;
+        
+        // db.CMD( this, answer_id, sipe_data->LENGTH, buffer, sipe_data->off_BUFFER );
+        
+        buffer->skip_some( buffer, sipe_data->off_BUFFER, sipe_data->LENGTH );
+        
+        data = buffer->data + sipe_data->off_BUFFER - 1;
+        end = buffer->data + buffer->used;
+     }
+    
+
+
+main = ( uint[ P ] ' ' mark_and_skip[ P ] )**

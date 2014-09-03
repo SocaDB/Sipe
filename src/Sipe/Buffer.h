@@ -1,6 +1,8 @@
-#ifndef Sipe_BUFFER_H
+#ifndef Siwpe_BUFFER_H
 #define Sipe_BUFFER_H
 
+// #include <iostream>
+#include <algorithm>
 #include "Ptr.h"
 
 namespace Sipe {
@@ -18,10 +20,10 @@ public:
     Buffer();
 
     template<class Stream>
-    void write_to_stream( Stream &os ) const {
-        for( int i = 0; i < size(); ++i ) {
+    void write_to_stream( Stream &os, SI64 off = 0, SI64 len = - 1 ) const {
+        for( SI64 i = off, e = len < 0 ? size() : std::min( off + len, size() ); i < e; ++i ) {
             static const char *c = "0123456789abcdef";
-            os << ( i ? " " : "" ) << c[ (*this)[ i ] / 16 ] << c[ (*this)[ i ] % 16 ];
+            os << ( i > off ? " " : "" ) << c[ (*this)[ i ] / 16 ] << c[ (*this)[ i ] % 16 ];
         }
     }
 
@@ -40,27 +42,30 @@ public:
 
     void copy_to( PI8 *res );
 
+    /// update buffer and off_buffer to skip msg_length
+    template<class S>
+    static void skip_some( Ptr<Buffer> &buffer, int &off_buffer, S msg_length ) {
+        while ( true ) {
+            if ( not buffer )
+                return;
+            // std::cerr << "m " << msg_length << std::endl;
+            if ( msg_length <= buffer->used - off_buffer ) {
+                off_buffer += msg_length;
+                // std::cerr << "o " << off_buffer << std::endl;
+                return;
+            }
+            msg_length -= buffer->used - off_buffer;
+            buffer = buffer->next;
+            off_buffer = 0;
+        }
+    }
+
     // attributes
     Ptr<Buffer> next;
     SI32        used;
     PI8         data[ item_size ];
 };
 
-/// update buffer and off_buffer to skip msg_length
-template<class S>
-void skip_some( Ptr<Buffer> &buffer, int &off_buffer, S msg_length ) {
-    while ( true ) {
-        if ( not buffer )
-            return;
-        if ( msg_length <= buffer->used - off_buffer ) {
-            off_buffer += msg_length;
-            return;
-        }
-        msg_length -= buffer->used - off_buffer;
-        buffer = buffer->next;
-        off_buffer = 0;
-    }
-}
 
 }
 

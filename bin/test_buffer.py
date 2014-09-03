@@ -7,7 +7,7 @@ def exec_cmd( cmd ):
         print ret
         sys.exit( ret )
 
-def write_data( beg, end, filename ):
+def write_data( sipe, beg, end, filename ):
     while sipe[ end - 1 ] in ["\n","\r"]:
         end -= 1
         
@@ -33,18 +33,21 @@ for i in os.listdir( 'tests' ):
         ex = re.finditer( '# expected\s+', sipe )
         el = re.finditer( '# end test', sipe )
         for b, x, e in zip( bl, ex, el ):
-            write_data( b.end(), x.start(), "tests/test_buffer.data" ) # input data
-            write_data( x.end(), e.start(), "tests/test_buffer.expected" ) # expected result
-            exec_cmd( 'tests/test_buffer tests/test_buffer.data > tests/test_buffer.result' ) # launch
-            if os.system( 'cmp tests/test_buffer.expected tests/test_buffer.result' ):
-                print "PB with 'tests/'" + i
-                print "DATA:"
-                os.system( "cat tests/test_buffer.data" )
-                print "\nEXPECTED:"
-                os.system( "cat tests/test_buffer.expected" )
-                print "\nRESULT:"
-                os.system( "cat tests/test_buffer.result" )
-                print ""
+            write_data( sipe, b.end(), x.start(), "tests/test_buffer.data" ) # input data
+            write_data( sipe, x.end(), e.start(), "tests/test_buffer.expected" ) # expected result
+            print "sub test"
+            for sep in range( 1, 16 ):
+                exec_cmd( 'tests/test_buffer tests/test_buffer.data ' + str( sep ) + ' > tests/test_buffer.result' ) # launch
+                if os.system( 'cmp tests/test_buffer.expected tests/test_buffer.result' ):
+                    print "PB with 'tests/" + i + "' with sep=" + str( sep )
+                    print "DATA:"
+                    os.system( "cat tests/test_buffer.data" )
+                    print "\nEXPECTED:"
+                    os.system( "cat tests/test_buffer.expected" )
+                    print "\nRESULT:"
+                    os.system( "cat tests/test_buffer.result" )
+                    print ""
+                    sys.exit( 0 )
                 
 
 

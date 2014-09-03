@@ -2,6 +2,7 @@
 #include <sys/types.h>
 #include <iostream>
 #include <unistd.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -11,6 +12,7 @@ using namespace Sipe;
 
 int main( int argc, char **argv ) {
     SipeData sd;
+    int sep = atoi( argv[ 2 ] );
 
     int fd = open( argv[ 1 ], O_RDONLY );
     if ( fd < 0 )
@@ -18,8 +20,9 @@ int main( int argc, char **argv ) {
 
     while ( true ) {
         Ptr<Buffer> buff = new Buffer;
-        buff->used = read( fd, buff->data, buff->item_size );
+        buff->used = read( fd, buff->data, sep ? sep : buff->item_size );
         // write( 0, buff->data, buff->used );
+        // std::cerr << buff->used << std::endl;
         if ( buff->used <= 0 ) {
             // need a retry or there are more data to come
             if ( buff->used < 0 and ( errno == EAGAIN or errno == EWOULDBLOCK ) )

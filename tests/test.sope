@@ -1,0 +1,53 @@
+#update = uint[P] ' ' i[P]
+
+#additionnal_purl = ( update | any )**
+
+#main = c 'PQRS '
+
+# beg test
+# 4 datathen
+# expected
+# P -> '123456'
+# 
+# end test
+# 
+# beg test
+# 1235 
+# 1236 
+# expected
+# P -> '1235'
+# 
+# end test
+# 
+# 
+
+mark_and_skip[ P ] =
+    add_attr[ 'Sipe::Ptr<Sipe::Buffer> beg_buffer;' ]
+    add_attr[ 'Sipe::Buffer *end_buffer;' ]
+    add_attr[ 'int off_buffer;' ]
+    {
+        off_buffer = data - buffer->data;
+        if ( buffer->size() - off_buffer < msg_length ) {
+            beg_buffer = buffer;
+            end_buffer = buffer.ptr();
+        
+            program_counter = &&append_buffer_##N;
+            return true;
+            append_buffer_##N:
+            end_buffer->next = buffer;
+            end_buffer = buffer.ptr();
+            if ( beg_buffer->size() - off_buffer < msg_length )
+                return true;
+        
+            buffer = beg_buffer;
+            beg_buffer = 0;
+        }
+    }
+    
+# db.CMD( this, answer_id, msg_length, buffer, off_buffer );
+# Celo::skip_some( buffer, off_buffer, msg_length );
+# end = buffer->data + buffer->used;
+# beg = buffer->data + off_buffer;
+
+
+main = uint[ P ] ' ' mark_and_skip[ P ]

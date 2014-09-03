@@ -247,7 +247,7 @@ void Language_C::_write_parse_func( std::ostream &os ) {
                 if ( ptr_buf ) {
                     on << "buffer = sipe_data->_beg_mark[ " << nm << " ];";
                     on << "data = buffer->data + sipe_data->_off_mark[ " << nm << " ];";
-                    on << "end = data + buffer->used;";
+                    on << "end = buffer->data + buffer->used;";
                 } else {
                     on << "if ( sipe_data->_mark[ " << nm << " ] ) {";
                     on << "    data = sipe_data->_mark[ " << nm << " ];";

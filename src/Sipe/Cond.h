@@ -29,8 +29,8 @@
 class Cond {
 public:
     enum {
-        eof = 256,
-        p_size = eof + 1
+        // eof = 256,
+        p_size = 256 // eof + 1
     };
 
     Cond();

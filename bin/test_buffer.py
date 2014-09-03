@@ -20,11 +20,12 @@ def write_data( sipe, beg, end, filename ):
     f.write( res )
     f.flush()
 
-
 for i in os.listdir( 'tests' ):
     if i.endswith( ".sipe" ):
         print "running test with", i
         exec_cmd( './sipe -b "Sipe::Ptr<Sipe::Buffer>" "tests/' + i + '" > tests/test_buffer.h' )
+        exec_cmd( 'touch tests/test_buffer.cpp' )
+        exec_cmd( 'rm -f tests/test_buffer tests/compilations/*' )
         exec_cmd( 'metil_comp -Isrc -ne -o tests/test_buffer tests/test_buffer.cpp' )
         
         # find test cases in .sipe

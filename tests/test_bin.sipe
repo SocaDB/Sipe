@@ -1,0 +1,24 @@
+# beg test
+# 4é44
+# expected
+# 61 62 63 64
+# 65 66 67 68 69
+# EOF
+# 
+# end test
+
+comp_bin_unsigned[ VAL, TYPE = "unsigned long" ] =
+    add_attr[ 'TYPE VAL;' ]
+    add_attr[ 'unsigned shift_VAL;' ]
+    ( 
+        0..127 { sipe_data->VAL = *data; }
+    ) |
+    ( 
+        128..255 { sipe_data->VAL = *data - 128; sipe_data->shift_VAL = 0; }
+        ( 128..255 { sipe_data->VAL += (TYPE)( *data - 128 ) << ( sipe_data->shift_VAL += 7 ); } )*
+        0..127 { sipe_data->VAL += (TYPE)( *data ) << ( sipe_data->shift_VAL + 7 ); }
+    )
+
+main =
+    ( comp_bin_unsigned[ P ] i[ P ] )**
+    
